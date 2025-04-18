@@ -707,6 +707,7 @@ int APPS_calc(uint16_t *torque, uint16_t lastFault){
     else {
         if (faultCounter >= faultMinToSub)
             t_req = car_state.torque_req - faultSubtraction; /* gradual decrease to ensure no resolver faults */
+            if(t_req < 0) t_req = 0;
         else 
             t_req = REMAPm_M(c_app, MIN_TORQUE_REQ, MAX_TORQUE_REQ);
     }
