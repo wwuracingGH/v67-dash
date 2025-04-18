@@ -34,7 +34,8 @@ _RTOS_IMPLEMENTATION_
  */
 #define TRACTIONCONTROL_ENABLED     0 /* does nothing rn */
 #define REGENBRAKING_ENABLED        0 /* does nothing rn */
-#define MC_WATCHDOG_ENABLED         1 /* babysitting for motor controller */
+#define MC_WATCHDOG_ENABLED         1 /* drops out of ready to drive upon a fault */
+#define MC_ON_BABYSITTING           1 /* additional checks before enabling ready to drive */
 
 /*
  * RESETABLE FAULTS
@@ -327,11 +328,17 @@ void InputIdle(){
         if (((ADC_Vars.APPS1 <= APPS1_MIN) && (ADC_Vars.APPS2 <= APPS2_MIN))
              && !areThereFaults() )
         {
+#if MC_ON_BABYSITTING == 1
             if (car_state.mcstate.is.vsmState != 4) return;
-            
+#endif 
             RTOS_switchState(car_state.state_rtd);
 
-            while(car_state.mcstate.is.vsmState == 5 || car_state.mcstate.is.vsmState == 4) recieve_CAN();
+#if MC_ON_BABYSITTING == 1
+            uint32_t t = 0;
+            while((car_state.mcstate.is.vsmState == 5 || car_state.mcstate.is.vsmState == 4) && t < 6000) {
+                recieve_CAN();
+                t++;
+            }
 
             if(car_state.mcstate.is.vsmState != 6) {
                 RTOS_switchState(car_state.state_idle);
@@ -342,6 +349,7 @@ void InputIdle(){
                 RTOS_scheduleEvent(BUZZEROFF, 200);
             }
         }
+#endif 
         else if (areThereFaults()) {
             MCWatchdog();
         }
