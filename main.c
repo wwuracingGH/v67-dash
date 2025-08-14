@@ -35,7 +35,7 @@ _RTOS_IMPLEMENTATION_
 #define TRACTIONCONTROL_ENABLED     0 /* does nothing rn */
 #define REGENBRAKING_ENABLED        0 /* does nothing rn */
 #define MC_WATCHDOG_ENABLED         1 /* drops out of ready to drive upon a fault */
-#define MC_ON_BABYSITTING           1 /* additional checks before enabling ready to drive */
+#define MC_ON_BABYSITTING           0 /* additional checks before enabling ready to drive */
 
 /*
  * RESETABLE FAULTS
@@ -74,7 +74,7 @@ void BUZZEROFF(){ GPIOB->ODR &= ~GPIO_ODR_5; }
 
 #define COMPILED_MIN_REGEN_SPEED     0
 #define COMPILED_MIN_TORQUE_REQ      0
-#define COMPILED_MAX_TORQUE_REQ      500
+#define COMPILED_MAX_TORQUE_REQ      2200
 #define COMPILED_BRAKES_THREASHOLD   450
 
 #define COMPILED_APPS1_MIN 1130
@@ -348,8 +348,9 @@ void InputIdle(){
                 RTOS_scheduleEvent(BUZZERON, 150);
                 RTOS_scheduleEvent(BUZZEROFF, 200);
             }
+#endif
         }
-#endif 
+
         else if (areThereFaults()) {
             MCWatchdog();
         }
