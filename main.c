@@ -667,8 +667,8 @@ int APPS_calc(uint16_t *torque, uint16_t lastFault){
 
     uint16_t fault = 0, t_req = 0;
     
-    const float apps1div = 1.0f / (APPS1_MAX - APPS1_MIN);
-    const float apps2div = 1.0f / (APPS2_MAX - APPS2_MIN);
+    float apps1div = 1.0f / (APPS1_MAX - APPS1_MIN);
+    float apps2div = 1.0f / (APPS2_MAX - APPS2_MIN);
 
     float apps1 = ((float)ADC_Vars.APPS1 - APPS1_MIN) * apps1div,
           apps2 = ((float)ADC_Vars.APPS2 - APPS2_MIN) * apps2div; 
