@@ -42,7 +42,6 @@ void clock_init();
 void GPIO_Init();
 void CAN_Init();
 void flash_Init();
-void my_func();
 
 void send_CAN(uint16_t, uint8_t, uint8_t*);
 void process_CAN(uint16_t id, uint8_t length, uint64_t data);
@@ -59,19 +58,10 @@ int main(){
     RTOS_start_armeabi(48000000);
     __enable_irq(); /* enable interrupts */
 
-    
-    int default_state = RTOS_addState(0, 0);
-    RTOS_switchState(default_state);
-    RTOS_scheduleTask(default_state, my_func, 500);
-
     /* non rt program bits */
     for(;;){
         RTOS_ExecuteTasks();
     }
-}
-
-void my_func(){
-    /* turn the LED on and off in here! */
 }
 
 /* runs every 1 ms */
@@ -136,8 +126,6 @@ void GPIO_Init(){
     /* turn on gpio clocks */
     RCC->AHBENR |= RCC_AHBENR_GPIOAEN; 
     RCC->AHBENR |= RCC_AHBENR_GPIOBEN; 
-
-    /* set pin mode for output here - put pin into output mode - led pin is port A 10 */
 }
 
 void send_CAN(uint16_t id, uint8_t length, uint8_t* data){
