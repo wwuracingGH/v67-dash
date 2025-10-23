@@ -51,7 +51,7 @@ int main(){
     /* setup */
     clock_init();
     flash_Init();
-    GPIO_Init(); /* must be called first */
+    GPIO_Init();
     RTOS_init();
     CAN_Init();
 
@@ -86,7 +86,7 @@ void clock_init() /* turns on hsi48 and sets as system clock */
     /* Enables HSI48 oscillator */
     RCC->CR2  |= RCC_CR2_HSI48ON;
     while (!(RCC->CR2 & RCC_CR2_HSI48RDY));
-    
+
     /* no peripheral prescaler div or hsi prescaler div */
     RCC->CFGR &= ~(0b111 << RCC_CFGR_PPRE_Pos);
     RCC->CFGR &= ~(0b1111 << RCC_CFGR_HPRE_Pos);

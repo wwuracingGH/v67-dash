@@ -164,7 +164,7 @@ int RTOS_ExecuteTasks(void);
  *
  */
 rtos_task* RTOS_currentTask(){
-    if(rtos_scheduler.currentTask == RTOS_NOT_IN_TASK) return NULL;
+    if(rtos_scheduler.currentTask == RTOS_NOT_IN_TASK) return 0;
 
     return &rtos_scheduler.tasks[rtos_scheduler.currentTask];
 }
