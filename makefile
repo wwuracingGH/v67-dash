@@ -2,16 +2,16 @@ CC=arm-none-eabi-gcc
 CFLAGS=-mcpu=cortex-m0 -g -mthumb -nostdlib -W -Wall -ffunction-sections
 CPPFLAGS= -DSTM32F042x6 -Ivendor/CMSIS/Device/ST/STM32F0/Include \
 	-Ivendor/CMSIS/Core/Include \
-	 -Ivendor/qfplib
+	-Ivendor/qfplib
 	
 LINKER_FILE=linker_script.ld
 LDFLAGS=-T $(LINKER_FILE)
 
-BINARY = v66vcu.elf
+BINARY = v67dash.elf
 
 all: $(BINARY) clean
 
-$(BINARY): main.o startup.o system_stm32f0xx.o vendor/qfplib/qfplib.s 
+$(BINARY): main.o startup.o i2cDriver.o system_stm32f0xx.o vendor/qfplib/qfplib.s 
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $^ -o $(BINARY)
 
 main.o: main.c
@@ -19,6 +19,9 @@ main.o: main.c
 
 startup.o: startup.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) startup.c -c
+
+i2cDriver.o: i2cDriver.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) i2cDriver.c -c
 
 system_stm32f0xx.o: vendor/CMSIS/Device/ST/STM32F0/Source/Templates/system_stm32f0xx.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) vendor/CMSIS/Device/ST/STM32F0/Source/Templates/system_stm32f0xx.c -c

@@ -1,17 +1,16 @@
 /**
  * NICOLE SWIERSTRA
  * 
- * VIKING 66 VCU CODE
+ * VIKING 67 DASH CODE
  *
- * This is the code for the vcu of the wwu racing viking 66 car meant for competition in 2024
  *
- * documentation can be found somewhere in the q drive and maybe in the readme if I ever get to it.
  */
 
 #include <stdint.h>
 #ifndef STM32F042x6
 #define STM32F042x6
 #endif
+#include "i2cDriver.h"
 #include "vendor/CMSIS/Device/ST/STM32F0/Include/stm32f0xx.h"
 #include "canDefinitions.h"
 #include "vendor/qfplib/qfplib.h"
@@ -41,7 +40,6 @@ enum Pin_Mode {
 void clock_init();
 void GPIO_Init();
 void CAN_Init();
-void flash_Init();
 void my_func();
 
 void send_CAN(uint16_t, uint8_t, uint8_t*);
@@ -51,14 +49,14 @@ void recieve_CAN();
 int main(){
     /* setup */
     clock_init();
-    flash_Init();
     GPIO_Init();
     RTOS_init();
     CAN_Init();
+    GPIOA->ODR ^= GPIO_ODR_10;
+    I2C_Enable();
 
     RTOS_start_armeabi(48000000);
     __enable_irq(); /* enable interrupts */
-
     
     int default_state = RTOS_addState(0, 0);
     RTOS_switchState(default_state);
@@ -71,7 +69,10 @@ int main(){
 }
 
 void my_func(){
-    /* turn the LED on and off in here! */
+    uint8_t transfer[] = { 1, 1 };
+    I2C_Send(0, 0, 2, transfer);
+
+    GPIOA->ODR ^= GPIO_ODR_10;
 }
 
 /* runs every 1 ms */
@@ -81,7 +82,6 @@ void systick_handler(){
 
 void flash_Init(){
     while ((FLASH->SR & FLASH_SR_BSY) != 0);
-
     if ((FLASH->CR & FLASH_CR_LOCK) != 0) {
         FLASH->KEYR = (uint32_t)0x45670123;
         FLASH->KEYR = (uint32_t)0xCDEF89AB;
@@ -136,8 +136,13 @@ void GPIO_Init(){
     /* turn on gpio clocks */
     RCC->AHBENR |= RCC_AHBENR_GPIOAEN; 
     RCC->AHBENR |= RCC_AHBENR_GPIOBEN; 
+    RCC->AHBENR |= RCC_AHBENR_GPIOFEN; 
 
+    GPIOA->MODER |= (MODE_OUTPUT << GPIO_MODER_MODER10);
     /* set pin mode for output here - put pin into output mode - led pin is port A 10 */
+
+    GPIOF->MODER |= (MODE_ALTFUNC << 0) | (MODE_ALTFUNC << GPIO_MODER_MODER1_Pos);
+    GPIOF->AFR[0] |= (1 << GPIO_AFRL_AFRL0_Pos) | (1 << GPIO_AFRL_AFRL1_Pos);
 }
 
 void send_CAN(uint16_t id, uint8_t length, uint8_t* data){

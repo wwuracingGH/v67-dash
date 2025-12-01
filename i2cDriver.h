@@ -1,5 +1,5 @@
-#ifndef _FLASH_H_
-#define _FLASH_H_
+#ifndef _I2C_H_
+#define _I2C_H_
 #include <stdint.h>
 
 /*
@@ -12,4 +12,6 @@ void I2C_Enable();
  * transfer_direction - 0 for write transfer, 1 for read transfer
  * num_bytes - Number of bytes to be sent 
  */
-void I2C_Init(uint16_t addr, uint8_t transfer_direction, uint8_t num_bytes);
+void I2C_Send(uint16_t addr, uint8_t transfer_direction, uint8_t num_bytes, uint8_t * bytes);
+
+#endif
