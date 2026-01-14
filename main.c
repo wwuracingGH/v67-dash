@@ -46,6 +46,46 @@ void send_CAN(uint16_t, uint8_t, uint8_t*);
 void process_CAN(uint16_t id, uint8_t length, uint64_t data);
 void recieve_CAN();
 
+uint8_t buffer[] = {
+    0x0,
+    0x0,
+    0x0,
+    0,
+    0x0,
+    0,
+    0,
+    0
+};
+
+uint8_t number_lut[] = {
+    0b00111111, /* 0 */
+    0b00000110, /* 1 */
+    0b01011011, /* 2 */
+    0b01001111, /* 3 */
+    0b01100110, /* 4 */
+    0b01101101, /* 5 */
+    0b01111101, /* 6 */
+    0b00000111, /* 7 */
+    0b01111111, /* 8 */
+    0b01101111, /* 9 */
+};
+
+/* take in seconds, and return a uint8_t array of values for the buffer */
+uint32_t get_timecode(uint32_t ms) {
+    uint8_t display_digits[4] = { 0 };
+
+    /* fill digits with 7-seg codes */
+    
+    for (int i = 0; i < 4; i++) {
+        ms /= 10;
+        unsigned int digit = ms % 10;
+    
+        display_digits[i] = number_lut[digit];
+    }
+
+    return display_digits[0] | display_digits[1] << 8 | display_digits[2] << 16 | display_digits[3] << 24;
+}
+
 int main(){
     /* setup */
     clock_init();
@@ -53,14 +93,13 @@ int main(){
     RTOS_init();
     CAN_Init();
     GPIOA->ODR ^= GPIO_ODR_10;
-    I2C_Enable();
 
     RTOS_start_armeabi(48000000);
     __enable_irq(); /* enable interrupts */
     
     int default_state = RTOS_addState(0, 0);
     RTOS_switchState(default_state);
-    RTOS_scheduleTask(default_state, my_func, 500);
+    RTOS_scheduleTask(default_state, my_func, 1);
 
     /* non rt program bits */
     for(;;){
@@ -69,10 +108,22 @@ int main(){
 }
 
 void my_func(){
-    uint8_t transfer[] = { 1, 1 };
-    I2C_Send(0, 0, 2, transfer);
+    uint32_t ms = RTOS_getMainTick();
+    uint32_t packed_Timecode = get_timecode(ms);
+    buffer[6] = packed_Timecode & 0xFF;
+    //buffer[5] = (packed_Timecode >> 8) & 0xFF;
+    //buffer[3] = (packed_Timecode >> 16) & 0xFF;
+    //buffer[2] = (packed_Timecode >> 24) & 0xFF;
 
-    GPIOA->ODR ^= GPIO_ODR_10;
+    static uint8_t i = 0;
+
+    if (i <= 7) {
+        GPIOA->ODR = ~(1 << i);
+        GPIOB->ODR = (buffer[i] & 0b11 | (buffer[i] & 0b11111100) << 1);
+    }
+
+    i++;
+    if(i > 8) i = 0;
 }
 
 /* runs every 1 ms */
@@ -121,7 +172,7 @@ void CAN_Init (){
     CAN->BTR |= 23 << CAN_BTR_BRP_Pos | 1 << CAN_BTR_TS1_Pos | 0 << CAN_BTR_TS2_Pos;
     CAN->MCR &= ~CAN_MCR_INRQ; /* clears the initialization request and starts the actual can */
     
-    while (CAN->MSR & CAN_MSR_INAK);
+    //while (CAN->MSR & CAN_MSR_INAK);
 
     /* blank filter - tells the can to read every message */
     CAN->FMR |= CAN_FMR_FINIT; 
@@ -138,11 +189,13 @@ void GPIO_Init(){
     RCC->AHBENR |= RCC_AHBENR_GPIOBEN; 
     RCC->AHBENR |= RCC_AHBENR_GPIOFEN; 
 
-    GPIOA->MODER |= (MODE_OUTPUT << GPIO_MODER_MODER10);
+    GPIOA->MODER |= (MODE_OUTPUT << GPIO_MODER_MODER10_Pos);
     /* set pin mode for output here - put pin into output mode - led pin is port A 10 */
-
-    GPIOF->MODER |= (MODE_ALTFUNC << 0) | (MODE_ALTFUNC << GPIO_MODER_MODER1_Pos);
-    GPIOF->AFR[0] |= (1 << GPIO_AFRL_AFRL0_Pos) | (1 << GPIO_AFRL_AFRL1_Pos);
+    GPIOA->MODER |= 0x5555;
+    GPIOA->OTYPER = 0xFF;
+    GPIOA->PUPDR = 0x5555;
+    GPIOB->MODER |= 0x15555;
+    GPIOF->MODER |= 1;
 }
 
 void send_CAN(uint16_t id, uint8_t length, uint8_t* data){
