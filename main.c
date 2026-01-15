@@ -107,6 +107,20 @@ int main(){
     }
 }
 
+uint16_t dubdabble (uint32_t poodle){
+    uint32_t output = 0;
+
+    for (int i = 0; i < 32; i++){
+        /* this is what shifting something in looks like */
+        output <<= 1; /* shift the output by one */
+        output |= poodle >> 32; /* adds the top bit of poodle to the end of output */
+        poodle <<= 1; /* shift the input by one */
+
+        /* do everything else here */
+        uint8_t lastfour = output & 0xF;
+    }
+}
+
 void my_func(){
     uint32_t ms = RTOS_getMainTick();
     uint32_t packed_Timecode = get_timecode(ms);
