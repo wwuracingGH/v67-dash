@@ -10,7 +10,6 @@
 #ifndef STM32F042x6
 #define STM32F042x6
 #endif
-#include "i2cDriver.h"
 #include "vendor/CMSIS/Device/ST/STM32F0/Include/stm32f0xx.h"
 #include "canDefinitions.h"
 #include "vendor/qfplib/qfplib.h"
@@ -57,33 +56,45 @@ uint8_t buffer[] = {
     0
 };
 
+/*  mc  seg
+    a == a
+    b == b
+    c == c
+    d == e
+    e == dp
+    f == f
+    g == g
+    dp == d
+ */
 uint8_t number_lut[] = {
-    0b00111111, /* 0 */
+    0b10110111, /* 0 */
     0b00000110, /* 1 */
-    0b01011011, /* 2 */
-    0b01001111, /* 3 */
+    0b11010011, /* 2 */
+    0b01010111, /* 3 */
     0b01100110, /* 4 */
-    0b01101101, /* 5 */
-    0b01111101, /* 6 */
+    0b01110101, /* 5 */
+    0b11110101, /* 6 */
     0b00000111, /* 7 */
-    0b01111111, /* 8 */
-    0b01101111, /* 9 */
+    0b11110111, /* 8 */
+    0b01110111, /* 9 */
 };
 
 /* take in seconds, and return a uint8_t array of values for the buffer */
-uint32_t get_timecode(uint32_t ms) {
-    uint8_t display_digits[4] = { 0 };
+void apply_timecode(uint16_t bsd_sec) {
+    /* 0000 0000 0000 0000 */
+	/* Dsec  sec dsec csec */
+	int csec = (bsd_sec) & 0b1111;
+	int dsec = (bsd_sec >> 4) & 0b1111;
+	int sec = (bsd_sec >> 8) & 0b1111;
+	int Dsec = (bsd_sec >> 12) & 0b1111;
 
-    /* fill digits with 7-seg codes */
-    
-    for (int i = 0; i < 4; i++) {
-        ms /= 10;
-        unsigned int digit = ms % 10;
-    
-        display_digits[i] = number_lut[digit];
-    }
+	/* buffer: */
+	/* 6    5     3   2 */
+	buffer[6] = number_lut[Dsec];
+	buffer[5] = number_lut[sec];
+	buffer[3] = number_lut[dsec];
+	buffer[2] = number_lut[csec];
 
-    return display_digits[0] | display_digits[1] << 8 | display_digits[2] << 16 | display_digits[3] << 24;
 }
 
 int main(){
@@ -119,7 +130,7 @@ uint16_t dubdabble (uint32_t poodle){
 
         /* this is what shifting something in looks like */
         output <<= 1; /* shift the output by one */
-        output |= poodle >> 32; /* adds the top bit of poodle to the end of output */
+        output |= poodle >> 31; /* adds the top bit of poodle to the end of output */
         poodle <<= 1; /* shift the input by one */
     }
 
@@ -128,11 +139,7 @@ uint16_t dubdabble (uint32_t poodle){
 
 void my_func(){
     uint32_t ms = RTOS_getMainTick();
-    uint32_t packed_Timecode = get_timecode(ms);
-    buffer[6] = packed_Timecode & 0xFF;
-    buffer[5] = (packed_Timecode >> 8) & 0xFF;
-    buffer[3] = (packed_Timecode >> 16) & 0xFF;
-    buffer[2] = (packed_Timecode >> 24) & 0xFF;
+    apply_timecode(dubdabble(ms));
 
     static uint8_t i = 0;
 
