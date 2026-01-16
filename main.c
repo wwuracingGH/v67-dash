@@ -111,23 +111,28 @@ uint16_t dubdabble (uint32_t poodle){
     uint32_t output = 0;
 
     for (int i = 0; i < 32; i++){
+        for (int i = 0; i < 5; i++) { /* we need to check the 5 lowest digits */
+            if ((output >> (4 * i) & 0xF) >= 5) { /* we check the ith digit is greater than or equal to 5 */
+                output += 3 << (4 * i); /* we add 3 to that digit if it is */
+            }
+        }
+
         /* this is what shifting something in looks like */
         output <<= 1; /* shift the output by one */
         output |= poodle >> 32; /* adds the top bit of poodle to the end of output */
         poodle <<= 1; /* shift the input by one */
-
-        /* do everything else here */
-        uint8_t lastfour = output & 0xF;
     }
+
+    return output >> 4;
 }
 
 void my_func(){
     uint32_t ms = RTOS_getMainTick();
     uint32_t packed_Timecode = get_timecode(ms);
     buffer[6] = packed_Timecode & 0xFF;
-    //buffer[5] = (packed_Timecode >> 8) & 0xFF;
-    //buffer[3] = (packed_Timecode >> 16) & 0xFF;
-    //buffer[2] = (packed_Timecode >> 24) & 0xFF;
+    buffer[5] = (packed_Timecode >> 8) & 0xFF;
+    buffer[3] = (packed_Timecode >> 16) & 0xFF;
+    buffer[2] = (packed_Timecode >> 24) & 0xFF;
 
     static uint8_t i = 0;
 
