@@ -45,38 +45,37 @@ void send_CAN(uint16_t, uint8_t, uint8_t*);
 void process_CAN(uint16_t id, uint8_t length, uint64_t data);
 void recieve_CAN();
 
+#define SEG_A (1 << 0)
+#define SEG_B (1 << 1)
+#define SEG_C (1 << 2)
+#define SEG_D (1 << 7)
+#define SEG_E (1 << 3)
+#define SEG_F (1 << 5)
+#define SEG_G (1 << 6)
+#define SEG_P (1 << 4)
+
 uint8_t buffer[] = {
     0x0,
     0x0,
     0x0,
     0,
-    0x0,
+    0,
     0,
     0,
     0
 };
 
-/*  mc  seg
-    a == a
-    b == b
-    c == c
-    d == e
-    e == dp
-    f == f
-    g == g
-    dp == d
- */
 uint8_t number_lut[] = {
-    0b10110111, /* 0 */
-    0b00000110, /* 1 */
-    0b11010011, /* 2 */
-    0b01010111, /* 3 */
-    0b01100110, /* 4 */
-    0b01110101, /* 5 */
-    0b11110101, /* 6 */
-    0b00000111, /* 7 */
-    0b11110111, /* 8 */
-    0b01110111, /* 9 */
+    SEG_A | SEG_B | SEG_C | SEG_D | SEG_E | SEG_F, /* 0 */
+    SEG_B | SEG_C, /* 1 */
+    SEG_A | SEG_B | SEG_G | SEG_E | SEG_D, /* 2 */
+    SEG_A | SEG_B | SEG_G | SEG_C | SEG_D, /* 3 */
+    SEG_F | SEG_G | SEG_B | SEG_C, /* 4 */
+    SEG_A | SEG_F | SEG_G | SEG_C | SEG_D, /* 5 */
+    SEG_A | SEG_F | SEG_E | SEG_D | SEG_C | SEG_G, /* 6 */
+    SEG_A | SEG_B | SEG_C, /* 7 */
+    SEG_A | SEG_B | SEG_C | SEG_D | SEG_E | SEG_F | SEG_G, /* 8 */
+    SEG_A | SEG_B | SEG_C | SEG_D | SEG_G | SEG_F, /* 9 */
 };
 
 /* take in seconds, and return a uint8_t array of values for the buffer */
@@ -122,7 +121,7 @@ uint16_t dubdabble (uint32_t poodle){
     uint32_t output = 0;
 
     for (int i = 0; i < 32; i++){
-        for (int i = 0; i < 5; i++) { /* we need to check the 5 lowest digits */
+        for (int i = 0; i < 6; i++) { /* we need to check the 5 lowest digits */
             if ((output >> (4 * i) & 0xF) >= 5) { /* we check the ith digit is greater than or equal to 5 */
                 output += 3 << (4 * i); /* we add 3 to that digit if it is */
             }
@@ -134,7 +133,7 @@ uint16_t dubdabble (uint32_t poodle){
         poodle <<= 1; /* shift the input by one */
     }
 
-    return output >> 4;
+    return output >> 2;
 }
 
 void my_func(){
