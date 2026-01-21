@@ -82,17 +82,19 @@ uint8_t number_lut[] = {
 void apply_timecode(uint16_t bsd_sec) {
     /* 0000 0000 0000 0000 */
 	/* Dsec  sec dsec csec */
-	int csec = (bsd_sec) & 0b1111;
-	int dsec = (bsd_sec >> 4) & 0b1111;
-	int sec = (bsd_sec >> 8) & 0b1111;
-	int Dsec = (bsd_sec >> 12) & 0b1111;
+	//int csec = (bsd_sec) & 0b1111;
+	int dsec = (bsd_sec >> 8) & 0b1111;
+	int sec = (bsd_sec >> 12) & 0b1111;
+	int Dsec = (bsd_sec >> 16) & 0b1111;
+    int hundSec = (bsd_sec >> 20) & 0b1111;
 
 	/* buffer: */
 	/* 6    5     3   2 */
-	buffer[6] = number_lut[Dsec];
-	buffer[5] = number_lut[sec];
-	buffer[3] = number_lut[dsec];
-	buffer[2] = number_lut[csec];
+	buffer[6] = number_lut[hundSec];
+	buffer[5] = number_lut[Dsec];
+    buffer[4] = 0b00000000; /* blank */
+	buffer[3] = number_lut[sec]|SEG_P;
+	buffer[2] = number_lut[dsec];
 
 }
 
@@ -117,7 +119,7 @@ int main(){
     }
 }
 
-uint16_t dubdabble (uint32_t poodle){
+uint32_t dubdabble (uint32_t poodle){
     uint32_t output = 0;
 
     for (int i = 0; i < 32; i++){
@@ -132,8 +134,6 @@ uint16_t dubdabble (uint32_t poodle){
         output |= poodle >> 31; /* adds the top bit of poodle to the end of output */
         poodle <<= 1; /* shift the input by one */
     }
-
-    return output >> 2;
 }
 
 void my_func(){
