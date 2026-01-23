@@ -113,7 +113,8 @@ void kill_car();
 void reset_handler(void)
 {
     // Copy .data from FLASH to SRAM
-    uint32_t data_size = (uint32_t)&_edata - (uint32_t)&_sdata;
+
+	uint32_t data_size = (uint32_t)&_edata - (uint32_t)&_sdata;
     uint8_t *flash_data = (uint8_t*) &_sidata; // Data load address (in flash)
     uint8_t *sram_data = (uint8_t*) &_sdata; // Data virtual address (in sram)
     

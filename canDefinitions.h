@@ -445,7 +445,7 @@ VCU_CANSTRUCT {
 } VCU_BpsRaw;
 
 VCU_CANSTRUCT {
-	uint8_t state;
+    uint8_t state;
 	uint8_t faultCounter    : 7;
     uint8_t pLatch          : 1;
     uint16_t lastValidTorqueReq;
@@ -465,6 +465,10 @@ VCU_CANSTRUCT {
 VCU_CANSTRUCT {
 	uint16_t id;
 } VCU_ParamReq;
+
+VCU_CANSTRUCT {
+    uint32_t timecode_update;
+} DASH_Command;
 
 BMS_CANSTRUCT {
     uint16_t pack_dischargeLimitKW;

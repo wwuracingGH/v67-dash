@@ -79,7 +79,7 @@ uint8_t number_lut[] = {
 };
 
 /* take in seconds, and return a uint8_t array of values for the buffer */
-void apply_timecode(uint16_t bsd_sec) {
+void apply_timecode(uint32_t bsd_sec) {
     /* 0000 0000 0000 0000 */
 	/* Dsec  sec dsec csec */
 	//int csec = (bsd_sec) & 0b1111;
@@ -98,6 +98,11 @@ void apply_timecode(uint16_t bsd_sec) {
 
 }
 
+void ping() {
+    uint8_t* hw = "helo wld";
+    send_CAN(1, 8, hw);
+}
+
 int main(){
     /* setup */
     clock_init();
@@ -112,6 +117,7 @@ int main(){
     int default_state = RTOS_addState(0, 0);
     RTOS_switchState(default_state);
     RTOS_scheduleTask(default_state, my_func, 1);
+    RTOS_scheduleTask(default_state, ping, 100);
 
     /* non rt program bits */
     for(;;){
@@ -119,11 +125,12 @@ int main(){
     }
 }
 
+
 uint32_t dubdabble (uint32_t poodle){
     uint32_t output = 0;
 
     for (int i = 0; i < 32; i++){
-        for (int i = 0; i < 6; i++) { /* we need to check the 5 lowest digits */
+        for (int i = 0; i < 8; i++) { /* we need to check the 5 lowest digits */
             if ((output >> (4 * i) & 0xF) >= 5) { /* we check the ith digit is greater than or equal to 5 */
                 output += 3 << (4 * i); /* we add 3 to that digit if it is */
             }
@@ -134,6 +141,8 @@ uint32_t dubdabble (uint32_t poodle){
         output |= poodle >> 31; /* adds the top bit of poodle to the end of output */
         poodle <<= 1; /* shift the input by one */
     }
+
+    return output;
 }
 
 void my_func(){
@@ -197,7 +206,7 @@ void CAN_Init (){
     CAN->BTR |= 23 << CAN_BTR_BRP_Pos | 1 << CAN_BTR_TS1_Pos | 0 << CAN_BTR_TS2_Pos;
     CAN->MCR &= ~CAN_MCR_INRQ; /* clears the initialization request and starts the actual can */
     
-    //while (CAN->MSR & CAN_MSR_INAK);
+    while (CAN->MSR & CAN_MSR_INAK);
 
     /* blank filter - tells the can to read every message */
     CAN->FMR |= CAN_FMR_FINIT; 
@@ -216,11 +225,16 @@ void GPIO_Init(){
 
     GPIOA->MODER |= (MODE_OUTPUT << GPIO_MODER_MODER10_Pos);
     /* set pin mode for output here - put pin into output mode - led pin is port A 10 */
-    GPIOA->MODER |= 0x5555;
+    GPIOA->MODER |= 0x5555
+            |  (MODE_ALTFUNC   << GPIO_MODER_MODER11_Pos)  /* CAN TX       */
+            |  (MODE_ALTFUNC   << GPIO_MODER_MODER12_Pos); /* CAN RX       */
     GPIOA->OTYPER = 0xFF;
     GPIOA->PUPDR = 0x5555;
     GPIOB->MODER |= 0x15555;
     GPIOF->MODER |= 1;
+
+    GPIOA->AFR[1] &= ~((0xF << GPIO_AFRH_AFSEL11_Pos) | (0xF << GPIO_AFRH_AFSEL12_Pos));
+    GPIOA->AFR[1] |= (4 << GPIO_AFRH_AFSEL11_Pos) | (4 << GPIO_AFRH_AFSEL12_Pos); /* can AFR */
 }
 
 void send_CAN(uint16_t id, uint8_t length, uint8_t* data){
