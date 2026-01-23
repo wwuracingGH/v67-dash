@@ -37,6 +37,8 @@ enum Pin_Mode {
 };
 uint32_t battery_percentage;
 uint32_t start_time;
+
+
 /*
 // =============
 current_time = os_time - start_time;
@@ -108,7 +110,15 @@ void apply_timecode(uint32_t bsd_sec) {
     buffer[4] = 0b00000000; /* blank */
 	buffer[3] = number_lut[sec]|SEG_P;
 	buffer[2] = number_lut[dsec];
+    
 
+}
+void apply_battery(uint32_t bsd_batt) {
+    int ones_batt = (bsd_batt) & 0b1111;
+	int tens_batt = (bsd_batt >> 4) & 0b1111;
+
+    buffer[1] = number_lut[tens_batt];
+    buffer[0] = number_lut[ones_batt];
 }
 
 void ping() {
@@ -162,6 +172,8 @@ uint32_t dubdabble (uint32_t poodle){
 void my_func(){
     uint32_t ms = RTOS_getMainTick();
     apply_timecode(dubdabble(ms));
+    apply_battery(dubdabble(battery_percentage));
+    
 
     static uint8_t i = 0;
 
