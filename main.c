@@ -35,6 +35,19 @@ enum Pin_Mode {
     MODE_ALTFUNC = 0b10,
     MODE_ANALOG  = 0b11
 };
+uint32_t battery_percentage;
+uint32_t start_time;
+/*
+// =============
+current_time = os_time - start_time;
+
+apply_timecode(current_time);
+
+//==== recieve can =======
+
+DASH_Command cmd;
+start_time -= current_time - cmd.timecode_update;
+*/
 
 void clock_init();
 void GPIO_Init();
@@ -117,6 +130,7 @@ int main(){
     int default_state = RTOS_addState(0, 0);
     RTOS_switchState(default_state);
     RTOS_scheduleTask(default_state, my_func, 1);
+    RTOS_scheduleTask(default_state, recieve_CAN, 1);
     RTOS_scheduleTask(default_state, ping, 100);
 
     /* non rt program bits */
@@ -278,7 +292,9 @@ void process_CAN(uint16_t id, uint8_t length, uint64_t data){
     (void)(length);
 
     switch (id){
-        case 0:
+        case DL_CANID_DASH_COMMAND:
+            DASH_Command dc = *(DASH_Command*)&data;
+            battery_percentage = dc.battery_percentage;
         break;
     }
 }

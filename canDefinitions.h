@@ -8,7 +8,6 @@
 
 #define MC_CANSTRUCT typedef struct __attribute__((packed, scalar_storage_order("little-endian")))
 #define VCU_CANSTRUCT typedef struct __attribute__((packed, scalar_storage_order("little-endian")))
-#define BMS_CANSTRUCT typedef struct __attribute__((packed, scalar_storage_order("little-endian")))
 
 typedef int16_t     MC_Temperature;
 typedef int16_t     MC_LowVoltage;
@@ -33,6 +32,7 @@ typedef uint8_t     MC_Byte;
 
 #define DL_CANID_WHEELSPEED                0x001
 #define DL_CANID_ACCEL                     0x002
+#define DL_CANID_DASH_COMMAND              0x003
 
 #define VCU_CANID_APPS_RAW                 0x101
 #define VCU_CANID_BPS_RAW              	   0x102
@@ -41,8 +41,6 @@ typedef uint8_t     MC_Byte;
 #define VCU_CANID_PARAM_REVEAL             0x105
 #define VCU_CANID_PARAM_CHANGE             0x106
 #define VCU_CANID_PARAM_REQUEST            0x107
-
-#define BMS_CANID_IMPORTANT_PARAMS         0x080
 
 #define MC_CANID_TEMPERATURE1              0x0A0
 #define MC_CANID_TEMPERATURE2              0x0A1
@@ -468,12 +466,5 @@ VCU_CANSTRUCT {
 
 VCU_CANSTRUCT {
     uint32_t timecode_update;
+    uint8_t battery_percentage;
 } DASH_Command;
-
-BMS_CANSTRUCT {
-    uint16_t pack_dischargeLimitKW;
-    uint16_t pack_openVoltage;
-    uint16_t reserved_1;
-    uint8_t pack_SOC;
-    uint8_t reserved_2;
-} BMS_important;
