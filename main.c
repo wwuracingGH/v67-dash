@@ -170,8 +170,8 @@ uint32_t dubdabble (uint32_t poodle){
 }
 
 void my_func(){
-    uint32_t ms = RTOS_getMainTick();
-    apply_timecode(dubdabble(ms));
+    uint32_t current_time = RTOS_getMainTick() - start_time;
+    apply_timecode(dubdabble(current_time));
     apply_battery(dubdabble(battery_percentage));
     
 
@@ -265,7 +265,7 @@ void GPIO_Init(){
 
 void send_CAN(uint16_t id, uint8_t length, uint8_t* data){
     /* all mailboxes full */
-    while(!(CAN->TSR & CAN_TSR_TME_Msk));
+    //while(!(CAN->TSR & CAN_TSR_TME_Msk));
 
     /* find first empty mailbox */
     int j = (CAN->TSR & CAN_TSR_CODE_Msk) >> CAN_TSR_CODE_Pos;
@@ -307,6 +307,8 @@ void process_CAN(uint16_t id, uint8_t length, uint64_t data){
         case DL_CANID_DASH_COMMAND:
             DASH_Command dc = *(DASH_Command*)&data;
             battery_percentage = dc.battery_percentage;
+            uint32_t current_time = RTOS_getMainTick() - start_time;
+            start_time += current_time - dc.timecode_update;
         break;
     }
 }
