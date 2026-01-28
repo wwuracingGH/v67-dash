@@ -37,6 +37,8 @@ enum Pin_Mode {
 };
 uint32_t battery_percentage;
 uint32_t start_time;
+uint32_t last_lap_time;
+uint32_t last_delta;
 
 
 /*
@@ -80,8 +82,8 @@ uint8_t buffer[] = {
     0
 };
 
-uint8_t number_lut[] = {
-    SEG_A | SEG_B | SEG_C | SEG_D | SEG_E | SEG_F, /* 0 */
+uint8_t number_lut[] = {//rename to tim,er lut and add new lut in order
+    SEG_A | SEG_B | SEG_C | SEG_D | SEG_E | SEG_F, /* 0 rename  to TSEG*/
     SEG_B | SEG_C, /* 1 */
     SEG_A | SEG_B | SEG_G | SEG_E | SEG_D, /* 2 */
     SEG_A | SEG_B | SEG_G | SEG_C | SEG_D, /* 3 */
@@ -121,10 +123,7 @@ void apply_battery(uint32_t bsd_batt) {
     buffer[0] = number_lut[ones_batt];
 }
 
-void ping() {
-    uint8_t* hw = "helo wld";
-    send_CAN(1, 8, hw);
-}
+int countup_state, countdown_state;
 
 int main(){
     /* setup */
@@ -137,11 +136,15 @@ int main(){
     RTOS_start_armeabi(48000000);
     __enable_irq(); /* enable interrupts */
     
-    int default_state = RTOS_addState(0, 0);
-    RTOS_switchState(default_state);
-    RTOS_scheduleTask(default_state, my_func, 1);
-    RTOS_scheduleTask(default_state, recieve_CAN, 1);
-    RTOS_scheduleTask(default_state, ping, 100);
+    countup_state = RTOS_addState(0, 0);
+    countdown_state = RTOS_addState(0, 0);
+    RTOS_switchState(countup_state);
+    RTOS_scheduleTask(countup_state, my_func, 1);
+    RTOS_scheduleTask(countdown_state, my_func_delta, 1);
+    
+    RTOS_scheduleTask(countup, recieve_CAN, 1);
+    RTOS_scheduleTask(countdown, recieve_CAN, 1);
+
 
     /* non rt program bits */
     for(;;){
@@ -168,12 +171,49 @@ uint32_t dubdabble (uint32_t poodle){
 
     return output;
 }
-
+ uint32_t abs(int32_t x){
+    if (x < 0) return -x;
+    return x;
+ }
 void my_func(){
     uint32_t current_time = RTOS_getMainTick() - start_time;
     apply_timecode(dubdabble(current_time));
     apply_battery(dubdabble(battery_percentage));
     
+
+    static uint8_t i = 0;
+
+    if (i <= 7) {
+        GPIOA->ODR = ~(1 << i);
+        GPIOB->ODR = (buffer[i] & 0b11 | (buffer[i] & 0b11111100) << 1);
+    }
+
+    i++;
+    if(i > 8) i = 0;
+}
+void blink_data_on(){
+    apply_timecode(dubdabble(last_delta));
+}
+void blink_data_off(){
+    buffer[6] = 0b00000000;
+    buffer[5] = 0b00000000;
+    buffer[4] = 0b00000000;
+    buffer[3] = 0b00000000;
+    buffer[2] = 0b00000000;
+}
+void lap (end_time) {
+    last_delta = last_lap_time - end_time;
+
+    RTOS_scheduleEvent(bink_data_on(), 500)
+    RTOS_scheduleEvent(blink_data_off(), 500)
+}
+void my_func_delta(){
+    uint32_t current_time = RTOS_getMainTick() - start_time;
+    apply_timecode(dubdabble(abs(last_lap_time - current_time)));
+    if (last_lap_time - current_time < 0) {
+        buffer[6] = SEG_G;
+    }
+    apply_battery(dubdabble(battery_percentage));
 
     static uint8_t i = 0;
 
@@ -307,8 +347,16 @@ void process_CAN(uint16_t id, uint8_t length, uint64_t data){
         case DL_CANID_DASH_COMMAND:
             DASH_Command dc = *(DASH_Command*)&data;
             battery_percentage = dc.battery_percentage;
-            uint32_t current_time = RTOS_getMainTick() - start_time;
-            start_time += current_time - dc.timecode_update;
+            uint32_t os_time = RTOS_getMainTick();//RTOS is T os
+            start_time = os_time - (1000 * (uint32_t)dc.timecode_update);
+
+            if (dc.switch_mode) {
+                if (RTOS_inState(countup_state)) {
+                    RTOS_switchState(countdown_state);
+                } else {
+                    RTOS_switchState(countup_state);
+                }
+            }
         break;
     }
 }
