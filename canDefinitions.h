@@ -466,5 +466,6 @@ VCU_CANSTRUCT {
 
 VCU_CANSTRUCT {
     uint32_t timecode_update;
-    uint8_t battery_percentage;
+    uint8_t switch_mode : 1;
+    uint8_t battery_percentage : 7;
 } DASH_Command;
