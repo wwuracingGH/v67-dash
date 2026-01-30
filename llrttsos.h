@@ -289,7 +289,7 @@ inline int RTOS_scheduleEvent(void (*function)(), uint16_t countdown){
     int ti = rtos_scheduler.numberOfEvents;
     int parent = (ti - 1) >> 1;
     
-    while(parent >= 0 && rtos_scheduler.eventHeap[parent].timestamp > rtos_scheduler.eventHeap[ti].timestamp){
+    while(parent >= 0 && rtos_scheduler.eventHeap[parent].timestamp < rtos_scheduler.eventHeap[ti].timestamp){
         rtos_scheduler.eventHeap[ti].timestamp = rtos_scheduler.eventHeap[parent].timestamp;
         rtos_scheduler.eventHeap[ti].callback = rtos_scheduler.eventHeap[parent].callback;
         ti = parent;

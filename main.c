@@ -37,8 +37,10 @@ enum Pin_Mode {
 };
 uint32_t battery_percentage;
 uint32_t start_time;
-uint32_t last_lap_time;
-uint32_t last_delta;
+uint32_t last_lap_time = -1;
+
+int32_t last_delta;
+uint32_t tc_lock;
 
 
 /*
@@ -57,6 +59,9 @@ void clock_init();
 void GPIO_Init();
 void CAN_Init();
 void my_func();
+void my_func_delta();
+void timecode_lock();
+void timecode_unlock();
 
 void send_CAN(uint16_t, uint8_t, uint8_t*);
 void process_CAN(uint16_t id, uint8_t length, uint64_t data);
@@ -125,6 +130,11 @@ void apply_battery(uint32_t bsd_batt) {
 
 int countup_state, countdown_state;
 
+void ping() {
+	char* str = "ping!";
+	send_CAN(1, 5, str);
+}
+
 int main(){
     /* setup */
     clock_init();
@@ -140,10 +150,11 @@ int main(){
     countdown_state = RTOS_addState(0, 0);
     RTOS_switchState(countup_state);
     RTOS_scheduleTask(countup_state, my_func, 1);
+    RTOS_scheduleTask(countup_state, ping, 1);
     RTOS_scheduleTask(countdown_state, my_func_delta, 1);
     
-    RTOS_scheduleTask(countup, recieve_CAN, 1);
-    RTOS_scheduleTask(countdown, recieve_CAN, 1);
+    RTOS_scheduleTask(countup_state, recieve_CAN, 1);
+    RTOS_scheduleTask(countdown_state, recieve_CAN, 1);
 
 
     /* non rt program bits */
@@ -171,15 +182,18 @@ uint32_t dubdabble (uint32_t poodle){
 
     return output;
 }
- uint32_t abs(int32_t x){
+
+uint32_t abs(int32_t x){
     if (x < 0) return -x;
     return x;
- }
+}
+
 void my_func(){
-    uint32_t current_time = RTOS_getMainTick() - start_time;
-    apply_timecode(dubdabble(current_time));
-    apply_battery(dubdabble(battery_percentage));
-    
+	if(!tc_lock) {
+		uint32_t current_time = RTOS_getMainTick() - start_time;
+		apply_timecode(dubdabble(current_time));
+	}
+	apply_battery(dubdabble(battery_percentage));
 
     static uint8_t i = 0;
 
@@ -191,9 +205,14 @@ void my_func(){
     i++;
     if(i > 8) i = 0;
 }
+
 void blink_data_on(){
-    apply_timecode(dubdabble(last_delta));
+	apply_timecode(dubdabble(abs(last_delta)));
+	if (last_delta < 0) {
+		buffer[6] = SEG_G;
+	}
 }
+
 void blink_data_off(){
     buffer[6] = 0b00000000;
     buffer[5] = 0b00000000;
@@ -201,19 +220,33 @@ void blink_data_off(){
     buffer[3] = 0b00000000;
     buffer[2] = 0b00000000;
 }
+
+void timecode_lock() {
+	tc_lock = 1;
+}
+void timecode_unlock() {
+	tc_lock = 0;
+}
+
 void lap (end_time) {
     last_delta = last_lap_time - end_time;
-
-    RTOS_scheduleEvent(bink_data_on(), 500)
-    RTOS_scheduleEvent(blink_data_off(), 500)
+    timecode_lock();
+    blink_data_off();
+    RTOS_scheduleEvent(blink_data_on, 200);
+    RTOS_scheduleEvent(blink_data_off, 450);
+    RTOS_scheduleEvent(blink_data_on, 600);
+    RTOS_scheduleEvent(blink_data_off, 850);
+    RTOS_scheduleEvent(timecode_unlock, 1000);
 }
 void my_func_delta(){
-    uint32_t current_time = RTOS_getMainTick() - start_time;
-    apply_timecode(dubdabble(abs(last_lap_time - current_time)));
-    if (last_lap_time - current_time < 0) {
-        buffer[6] = SEG_G;
-    }
-    apply_battery(dubdabble(battery_percentage));
+	if (!tc_lock) {
+		uint32_t current_time = RTOS_getMainTick() - start_time;
+		apply_timecode(dubdabble(abs(last_lap_time - current_time)));
+		if (last_lap_time - current_time < 0) {
+			buffer[6] = SEG_G;
+		}
+	}
+	apply_battery(dubdabble(battery_percentage));
 
     static uint8_t i = 0;
 
@@ -348,8 +381,13 @@ void process_CAN(uint16_t id, uint8_t length, uint64_t data){
             DASH_Command dc = *(DASH_Command*)&data;
             battery_percentage = dc.battery_percentage;
             uint32_t os_time = RTOS_getMainTick();//RTOS is T os
-            start_time = os_time - (1000 * (uint32_t)dc.timecode_update);
-
+            uint32_t can_time = (1000 * (uint32_t)dc.timecode_update);
+            if (can_time < 5000 && (os_time - start_time) > 5000) {
+            	lap(os_time - start_time);
+            	if (os_time - start_time < last_lap_time)
+            		last_lap_time = (os_time - start_time);
+            }
+            start_time = os_time - can_time;
             if (dc.switch_mode) {
                 if (RTOS_inState(countup_state)) {
                     RTOS_switchState(countdown_state);
@@ -359,4 +397,4 @@ void process_CAN(uint16_t id, uint8_t length, uint64_t data){
             }
         break;
     }
-}
+	}

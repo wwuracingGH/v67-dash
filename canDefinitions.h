@@ -32,7 +32,9 @@ typedef uint8_t     MC_Byte;
 
 #define DL_CANID_WHEELSPEED                0x001
 #define DL_CANID_ACCEL                     0x002
-#define DL_CANID_DASH_COMMAND              0x003
+
+#define DL_CANID_DASH_COMMAND              0x010
+#define DL_CANID_DASH_BATTMODE             0x011
 
 #define VCU_CANID_APPS_RAW                 0x101
 #define VCU_CANID_BPS_RAW              	   0x102
@@ -464,8 +466,10 @@ VCU_CANSTRUCT {
 	uint16_t id;
 } VCU_ParamReq;
 
+/* 4 bytes if normal, 8 bytes if lapped */
 VCU_CANSTRUCT {
-    uint32_t timecode_update;
-    uint8_t switch_mode : 1;
-    uint8_t battery_percentage : 7;
-} DASH_Command;
+    uint16_t current_time; /* current time, in 100ths of a second */
+    int16_t pred_delta; /* predicted delta, in 100ths of a second */
+    uint16_t best_lap_time; /* best lap time, in 100ths of a second - for delta calculation */
+    uint16_t last_lap_time; /* last lap time, in 100ths of a second - for delta calculation */
+} DASH_TimeCommand;
