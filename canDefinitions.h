@@ -473,3 +473,8 @@ VCU_CANSTRUCT {
     uint16_t best_lap_time; /* best lap time, in 100ths of a second - for delta calculation */
     uint16_t last_lap_time; /* last lap time, in 100ths of a second - for delta calculation */
 } DASH_TimeCommand;
+
+VCU_CANSTRUCT {
+    uint8_t battery_percentage; /* battery percentage */
+    uint8_t mode; /* boolean; do we switch mode this frame */
+} DASH_BattCommand;
