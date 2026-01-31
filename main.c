@@ -38,7 +38,7 @@ enum Pin_Mode {
 };
 uint32_t battery_percentage;
 uint32_t start_time;
-uint32_t last_lap_time = -1;
+uint32_t best_lap_time = -1;
 
 int32_t last_delta;
 int32_t pred_delta;
@@ -144,11 +144,6 @@ void apply_battery(uint32_t bsd_batt) {
 }
 
 int normal_state, predictive_delta_state;
-
-void ping() {
-	char* str = "ping!";
-	send_CAN(1, 5, (uint8_t*)str);
-}
 
 int main(){
     /* setup */
@@ -260,7 +255,7 @@ void timecode_unlock() {
 }
 
 void lap (uint16_t end_time) {
-    last_delta = last_lap_time - end_time;
+    last_delta = end_time - best_lap_time;
     timecode_lock();
     blink_data_off();
     RTOS_scheduleEvent(blink_data_on, 200);
@@ -392,11 +387,12 @@ void process_CAN(uint16_t id, uint8_t length, uint64_t data){
             DASH_TimeCommand dc = *(DASH_TimeCommand*)&data;
             uint32_t os_time = RTOS_getMainTick();//RTOS is T os
             uint32_t can_time = (10 * (uint16_t)dc.current_time);
-	    pred_delta = dc.pred_delta;
+	        
+            pred_delta = dc.pred_delta;
+            
             if (length == 8) {
-            	lap(os_time - start_time);
-            	if (os_time - start_time < last_lap_time)
-            		last_lap_time = (os_time - start_time);
+                best_lap_time = dc.best_lap_time;
+                lap(dc.last_lap_time);
             }
             start_time = os_time - can_time;
 	    break;
