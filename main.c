@@ -87,7 +87,7 @@ uint8_t buffer[] = {
     0
 };
 
-uint8_t number_lut[] = {//rename to tim,er lut and add new lut in order
+uint8_t timer_lut[] = {//rename to tim,er lut and add new lut in order
     SEG_A | SEG_B | SEG_C | SEG_D | SEG_E | SEG_F, /* 0 rename  to TSEG*/
     SEG_B | SEG_C, /* 1 */
     SEG_A | SEG_B | SEG_G | SEG_E | SEG_D, /* 2 */
@@ -98,6 +98,19 @@ uint8_t number_lut[] = {//rename to tim,er lut and add new lut in order
     SEG_A | SEG_B | SEG_C, /* 7 */
     SEG_A | SEG_B | SEG_C | SEG_D | SEG_E | SEG_F | SEG_G, /* 8 */
     SEG_A | SEG_B | SEG_C | SEG_D | SEG_G | SEG_F, /* 9 */
+};
+
+uint8_t batt_lut[] = {
+		SEG_A | SEG_B | SEG_C | SEG_E | SEG_P | SEG_F,
+		SEG_B | SEG_C,
+		SEG_A | SEG_B | SEG_G | SEG_P | SEG_E,
+		SEG_A | SEG_B | SEG_G | SEG_C | SEG_E,
+		SEG_B | SEG_G | SEG_C | SEG_F,
+		SEG_A | SEG_F | SEG_G | SEG_C | SEG_E,
+		SEG_A | SEG_F | SEG_G | SEG_C | SEG_E | SEG_P,
+		SEG_A | SEG_B | SEG_C,
+		SEG_A | SEG_B | SEG_C | SEG_E | SEG_P | SEG_F | SEG_G,
+		SEG_A | SEG_B | SEG_C | SEG_F | SEG_G,
 };
 
 /* take in seconds, and return a uint8_t array of values for the buffer */
@@ -112,11 +125,11 @@ void apply_timecode(uint32_t bsd_sec) {
 
 	/* buffer: */
 	/* 6    5     3   2 */
-	buffer[6] = number_lut[hundSec];
-	buffer[5] = number_lut[Dsec];
+	buffer[6] = timer_lut[hundSec];
+	buffer[5] = timer_lut[Dsec];
     buffer[4] = 0b00000000; /* blank */
-	buffer[3] = number_lut[sec]|SEG_P;
-	buffer[2] = number_lut[dsec];
+	buffer[3] = timer_lut[sec]|SEG_P;
+	buffer[2] = timer_lut[dsec];
     
 
 }
@@ -124,8 +137,8 @@ void apply_battery(uint32_t bsd_batt) {
     int ones_batt = (bsd_batt) & 0b1111;
 	int tens_batt = (bsd_batt >> 4) & 0b1111;
 
-    buffer[1] = number_lut[tens_batt];
-    buffer[0] = number_lut[ones_batt];
+    buffer[1] = batt_lut[tens_batt];
+    buffer[0] = batt_lut[ones_batt];
 }
 
 int countup_state, countdown_state;
@@ -228,7 +241,7 @@ void timecode_unlock() {
 	tc_lock = 0;
 }
 
-void lap (end_time) {
+void lap (uint16_t end_time) {
     last_delta = last_lap_time - end_time;
     timecode_lock();
     blink_data_off();
@@ -378,23 +391,26 @@ void process_CAN(uint16_t id, uint8_t length, uint64_t data){
 
     switch (id){
         case DL_CANID_DASH_COMMAND:
-            DASH_Command dc = *(DASH_Command*)&data;
-            battery_percentage = dc.battery_percentage;
+            DASH_TimeCommand dc = *(DASH_TimeCommand*)&data;
             uint32_t os_time = RTOS_getMainTick();//RTOS is T os
-            uint32_t can_time = (1000 * (uint32_t)dc.timecode_update);
+            uint32_t can_time = (1000 * (uint16_t)dc.current_time);
             if (can_time < 5000 && (os_time - start_time) > 5000) {
             	lap(os_time - start_time);
             	if (os_time - start_time < last_lap_time)
             		last_lap_time = (os_time - start_time);
             }
             start_time = os_time - can_time;
-            if (dc.switch_mode) {
-                if (RTOS_inState(countup_state)) {
-                    RTOS_switchState(countdown_state);
-                } else {
-                    RTOS_switchState(countup_state);
-                }
-            }
         break;
+        case DL_CANID_DASH_BATTMODE:
+        	DASH_BattCommand bm = *(DASH_BattCommand*)&data;
+        	battery_percentage = bm.battery_percentage;
+        	 if (bm.mode) {
+        	     if (RTOS_inState(countup_state)) {
+        	         RTOS_switchState(countdown_state);
+        	     } else {
+        	    	 RTOS_switchState(countup_state);
+        	     }
+        	}
+        	break;
     }
 	}
