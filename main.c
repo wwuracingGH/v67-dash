@@ -388,11 +388,11 @@ void process_CAN(uint16_t id, uint8_t length, uint64_t data){
             uint32_t os_time = RTOS_getMainTick();//RTOS is T os
             uint32_t can_time = (10 * (uint16_t)dc.current_time);
 	        
-            pred_delta = dc.pred_delta;
+            pred_delta = 10 * dc.pred_delta;
             
             if (length == 8) {
-                best_lap_time = dc.best_lap_time;
-                lap(dc.last_lap_time);
+                best_lap_time = 10 * dc.best_lap_time;
+                lap(10 * dc.last_lap_time);
             }
             start_time = os_time - can_time;
 	    break;
