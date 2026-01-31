@@ -7,6 +7,7 @@
  */
 
 #include <stdint.h>
+#include <stdlib.h>
 #ifndef STM32F042x6
 #define STM32F042x6
 #endif
@@ -40,6 +41,7 @@ uint32_t start_time;
 uint32_t last_lap_time = -1;
 
 int32_t last_delta;
+int32_t pred_delta;
 uint32_t tc_lock;
 
 
@@ -58,8 +60,8 @@ start_time -= current_time - cmd.timecode_update;
 void clock_init();
 void GPIO_Init();
 void CAN_Init();
-void my_func();
-void my_func_delta();
+void normal_handler();
+void predictive_delta_handler();
 void timecode_lock();
 void timecode_unlock();
 
@@ -141,11 +143,11 @@ void apply_battery(uint32_t bsd_batt) {
     buffer[0] = batt_lut[ones_batt];
 }
 
-int countup_state, countdown_state;
+int normal_state, predictive_delta_state;
 
 void ping() {
 	char* str = "ping!";
-	send_CAN(1, 5, str);
+	send_CAN(1, 5, (uint8_t*)str);
 }
 
 int main(){
@@ -159,15 +161,15 @@ int main(){
     RTOS_start_armeabi(48000000);
     __enable_irq(); /* enable interrupts */
     
-    countup_state = RTOS_addState(0, 0);
-    countdown_state = RTOS_addState(0, 0);
-    RTOS_switchState(countup_state);
-    RTOS_scheduleTask(countup_state, my_func, 1);
-    RTOS_scheduleTask(countup_state, ping, 1);
-    RTOS_scheduleTask(countdown_state, my_func_delta, 1);
+    normal_state = RTOS_addState(0, 0);
+    predictive_delta_state = RTOS_addState(0, 0);
+    RTOS_switchState(normal_state);
+    RTOS_scheduleTask(normal_state, normal_handler, 1);
     
-    RTOS_scheduleTask(countup_state, recieve_CAN, 1);
-    RTOS_scheduleTask(countdown_state, recieve_CAN, 1);
+    RTOS_scheduleTask(predictive_delta_state, predictive_delta_handler, 1);
+
+    RTOS_scheduleTask(normal_state, recieve_CAN, 1);
+    RTOS_scheduleTask(predictive_delta_state, recieve_CAN, 1);
 
 
     /* non rt program bits */
@@ -196,12 +198,7 @@ uint32_t dubdabble (uint32_t poodle){
     return output;
 }
 
-uint32_t abs(int32_t x){
-    if (x < 0) return -x;
-    return x;
-}
-
-void my_func(){
+void normal_handler(){
 	if(!tc_lock) {
 		uint32_t current_time = RTOS_getMainTick() - start_time;
 		apply_timecode(dubdabble(current_time));
@@ -212,7 +209,28 @@ void my_func(){
 
     if (i <= 7) {
         GPIOA->ODR = ~(1 << i);
-        GPIOB->ODR = (buffer[i] & 0b11 | (buffer[i] & 0b11111100) << 1);
+        GPIOB->ODR = ((buffer[i] & 0b11) | (buffer[i] & 0b11111100) << 1);
+    }
+
+    i++;
+    if(i > 8) i = 0;
+}
+
+void predictive_delta_handler(){
+    if (!tc_lock) {
+	    apply_timecode(dubdabble(pred_delta));
+	    if (pred_delta < 0) {
+		    buffer[6] = SEG_G;
+	    }
+    }
+
+    apply_battery(dubdabble(battery_percentage));
+
+    static uint8_t i = 0;
+
+    if (i <= 7) {
+        GPIOA->ODR = ~(1 << i);
+        GPIOB->ODR = ((buffer[i] & 0b11) | (buffer[i] & 0b11111100) << 1);
     }
 
     i++;
@@ -250,26 +268,6 @@ void lap (uint16_t end_time) {
     RTOS_scheduleEvent(blink_data_on, 600);
     RTOS_scheduleEvent(blink_data_off, 850);
     RTOS_scheduleEvent(timecode_unlock, 1000);
-}
-void my_func_delta(){
-	if (!tc_lock) {
-		uint32_t current_time = RTOS_getMainTick() - start_time;
-		apply_timecode(dubdabble(abs(last_lap_time - current_time)));
-		if (last_lap_time - current_time < 0) {
-			buffer[6] = SEG_G;
-		}
-	}
-	apply_battery(dubdabble(battery_percentage));
-
-    static uint8_t i = 0;
-
-    if (i <= 7) {
-        GPIOA->ODR = ~(1 << i);
-        GPIOB->ODR = (buffer[i] & 0b11 | (buffer[i] & 0b11111100) << 1);
-    }
-
-    i++;
-    if(i > 8) i = 0;
 }
 
 /* runs every 1 ms */
@@ -393,24 +391,25 @@ void process_CAN(uint16_t id, uint8_t length, uint64_t data){
         case DL_CANID_DASH_COMMAND:
             DASH_TimeCommand dc = *(DASH_TimeCommand*)&data;
             uint32_t os_time = RTOS_getMainTick();//RTOS is T os
-            uint32_t can_time = (1000 * (uint16_t)dc.current_time);
-            if (can_time < 5000 && (os_time - start_time) > 5000) {
+            uint32_t can_time = (10 * (uint16_t)dc.current_time);
+	    pred_delta = dc.pred_delta;
+            if (length == 8) {
             	lap(os_time - start_time);
             	if (os_time - start_time < last_lap_time)
             		last_lap_time = (os_time - start_time);
             }
             start_time = os_time - can_time;
-        break;
+	    break;
         case DL_CANID_DASH_BATTMODE:
-        	DASH_BattCommand bm = *(DASH_BattCommand*)&data;
-        	battery_percentage = bm.battery_percentage;
-        	 if (bm.mode) {
-        	     if (RTOS_inState(countup_state)) {
-        	         RTOS_switchState(countdown_state);
-        	     } else {
-        	    	 RTOS_switchState(countup_state);
-        	     }
-        	}
-        	break;
+	    DASH_BattCommand bm = *(DASH_BattCommand*)&data;
+	    battery_percentage = bm.battery_percentage;
+	     if (bm.mode) {
+		 if (RTOS_inState(normal_state)) {
+		     RTOS_switchState(predictive_delta_state);
+		 } else {
+		     RTOS_switchState(normal_state);
+		 }
+	    }
+	    break;
     }
-	}
+}
