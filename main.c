@@ -78,6 +78,36 @@ void recieve_CAN();
 #define SEG_G (1 << 6)
 #define SEG_P (1 << 4)
 
+uint8_t error_apps_fault[] = {
+    SEG_A | SEG_B | SEG_C | SEG_E | SEG_F | SEG_G,  /* A */
+    SEG_A | SEG_B | SEG_E | SEG_F | SEG_G,          /* P */
+    SEG_A | SEG_B | SEG_E | SEG_F | SEG_G,          /* P */
+    SEG_A | SEG_F | SEG_G | SEG_C | SEG_D,          /* S */
+};
+
+uint8_t error_uvlo_fault[] = {
+    SEG_B | SEG_C | SEG_D | SEG_E | SEG_F,          /* U */
+    SEG_B | SEG_G | SEG_E | SEG_F,                  /* V */
+    SEG_E | SEG_D | SEG_F,          				/* L */
+    SEG_A | SEG_B | SEG_C | SEG_D | SEG_E | SEG_F,  /* O */
+};
+
+uint8_t error_reso_fault[] = {
+    SEG_E | SEG_G,                                  /* R */
+    SEG_A | SEG_D | SEG_E | SEG_F | SEG_G,          /* E */
+    SEG_A | SEG_F | SEG_G | SEG_C | SEG_D,          /* S */
+    SEG_A | SEG_B | SEG_C | SEG_D | SEG_E | SEG_F,  /* O */
+};
+
+uint8_t error_plas_fault[] = {
+    SEG_A | SEG_B | SEG_E | SEG_F | SEG_G,          /* P */
+	SEG_E | SEG_D | SEG_F,          				/* L */
+    SEG_A | SEG_B | SEG_C | SEG_E | SEG_F | SEG_G,  /* A */
+    SEG_A | SEG_F | SEG_G | SEG_C | SEG_D,          /* S */
+};
+
+uint8_t error_plaus_fault[]
+
 uint8_t buffer[] = {
     0x0,
     0x0,
@@ -89,31 +119,20 @@ uint8_t buffer[] = {
     0
 };
 
-uint8_t timer_lut[] = {//rename to tim,er lut and add new lut in order
-    SEG_A | SEG_B | SEG_C | SEG_D | SEG_E | SEG_F, /* 0 rename  to TSEG*/
-    SEG_B | SEG_C, /* 1 */
-    SEG_A | SEG_B | SEG_G | SEG_E | SEG_D, /* 2 */
-    SEG_A | SEG_B | SEG_G | SEG_C | SEG_D, /* 3 */
-    SEG_F | SEG_G | SEG_B | SEG_C, /* 4 */
-    SEG_A | SEG_F | SEG_G | SEG_C | SEG_D, /* 5 */
-    SEG_A | SEG_F | SEG_E | SEG_D | SEG_C | SEG_G, /* 6 */
-    SEG_A | SEG_B | SEG_C, /* 7 */
-    SEG_A | SEG_B | SEG_C | SEG_D | SEG_E | SEG_F | SEG_G, /* 8 */
-    SEG_A | SEG_B | SEG_C | SEG_D | SEG_G | SEG_F, /* 9 */
+uint8_t seg_lut[] = {
+	SEG_A | SEG_B | SEG_C | SEG_E | SEG_P | SEG_F,
+	SEG_B | SEG_C,
+	SEG_A | SEG_B | SEG_G | SEG_P | SEG_E,
+	SEG_A | SEG_B | SEG_G | SEG_C | SEG_E,
+	SEG_B | SEG_G | SEG_C | SEG_F,
+	SEG_A | SEG_F | SEG_G | SEG_C | SEG_E,
+	SEG_A | SEG_F | SEG_G | SEG_C | SEG_E | SEG_P,
+	SEG_A | SEG_B | SEG_C,
+	SEG_A | SEG_B | SEG_C | SEG_E | SEG_P | SEG_F | SEG_G,
+	SEG_A | SEG_B | SEG_C | SEG_F | SEG_G,
 };
 
-uint8_t batt_lut[] = {
-		SEG_A | SEG_B | SEG_C | SEG_E | SEG_P | SEG_F,
-		SEG_B | SEG_C,
-		SEG_A | SEG_B | SEG_G | SEG_P | SEG_E,
-		SEG_A | SEG_B | SEG_G | SEG_C | SEG_E,
-		SEG_B | SEG_G | SEG_C | SEG_F,
-		SEG_A | SEG_F | SEG_G | SEG_C | SEG_E,
-		SEG_A | SEG_F | SEG_G | SEG_C | SEG_E | SEG_P,
-		SEG_A | SEG_B | SEG_C,
-		SEG_A | SEG_B | SEG_C | SEG_E | SEG_P | SEG_F | SEG_G,
-		SEG_A | SEG_B | SEG_C | SEG_F | SEG_G,
-};
+const int batt_repeats = 2;
 
 /* take in seconds, and return a uint8_t array of values for the buffer */
 void apply_timecode(uint32_t bsd_sec) {
@@ -127,11 +146,11 @@ void apply_timecode(uint32_t bsd_sec) {
 
 	/* buffer: */
 	/* 6    5     3   2 */
-	buffer[6] = timer_lut[hundSec];
-	buffer[5] = timer_lut[Dsec];
+	buffer[6] = seg_lut[hundSec];
+	buffer[5] = seg_lut[Dsec];
     buffer[4] = 0b00000000; /* blank */
-	buffer[3] = timer_lut[sec]|SEG_P;
-	buffer[2] = timer_lut[dsec];
+	buffer[3] = seg_lut[sec]|SEG_P;
+	buffer[2] = seg_lut[dsec];
     
 
 }
@@ -139,8 +158,8 @@ void apply_battery(uint32_t bsd_batt) {
     int ones_batt = (bsd_batt) & 0b1111;
 	int tens_batt = (bsd_batt >> 4) & 0b1111;
 
-    buffer[1] = batt_lut[tens_batt];
-    buffer[0] = batt_lut[ones_batt];
+    buffer[1] = seg_lut[tens_batt];
+    buffer[0] = seg_lut[ones_batt];
 }
 
 int normal_state, predictive_delta_state;
@@ -193,6 +212,12 @@ uint32_t dubdabble (uint32_t poodle){
     return output;
 }
 
+void apply_digit(int digit) {
+    GPIOA->ODR &= ~0xFF;
+    GPIOA->ODR |= (1 << (digit)) & 0xFF;
+    GPIOB->ODR  = ~(((buffer[digit] & 0b11) | (buffer[digit] & 0b11111100) << 1));
+}
+
 void normal_handler(){
 	if(!tc_lock) {
 		uint32_t current_time = RTOS_getMainTick() - start_time;
@@ -202,13 +227,16 @@ void normal_handler(){
 
     static uint8_t i = 0;
 
-    if (i <= 7) {
-        GPIOA->ODR = ~(1 << i);
-        GPIOB->ODR = ((buffer[i] & 0b11) | (buffer[i] & 0b11111100) << 1);
+    if (i <= 6) {
+        apply_digit(i);
+    } else {
+        int s = (i % 2);
+        apply_digit(s);
     }
 
     i++;
-    if(i > 8) i = 0;
+    if(i == 7 + (2 * batt_repeats)) 
+        i = 0;
 }
 
 void predictive_delta_handler(){
@@ -223,13 +251,16 @@ void predictive_delta_handler(){
 
     static uint8_t i = 0;
 
-    if (i <= 7) {
-        GPIOA->ODR = ~(1 << i);
-        GPIOB->ODR = ((buffer[i] & 0b11) | (buffer[i] & 0b11111100) << 1);
+    if (i <= 6) {
+        apply_digit(i);
+    } else {
+        int s = (i % 2);
+        apply_digit(s);
     }
 
     i++;
-    if(i > 8) i = 0;
+    if(i == 7 + (2 * batt_repeats)) 
+        i = 0;
 }
 
 void blink_data_on(){
@@ -311,7 +342,7 @@ void CAN_Init (){
     CAN->BTR |= 23 << CAN_BTR_BRP_Pos | 1 << CAN_BTR_TS1_Pos | 0 << CAN_BTR_TS2_Pos;
     CAN->MCR &= ~CAN_MCR_INRQ; /* clears the initialization request and starts the actual can */
     
-    while (CAN->MSR & CAN_MSR_INAK);
+    //while (CAN->MSR & CAN_MSR_INAK);
 
     /* blank filter - tells the can to read every message */
     CAN->FMR |= CAN_FMR_FINIT; 
@@ -396,16 +427,8 @@ void process_CAN(uint16_t id, uint8_t length, uint64_t data){
             }
             start_time = os_time - can_time;
 	    break;
-        case DL_CANID_DASH_BATTMODE:
-	    DASH_BattCommand bm = *(DASH_BattCommand*)&data;
-	    battery_percentage = bm.battery_percentage;
-	     if (bm.mode) {
-		 if (RTOS_inState(normal_state)) {
-		     RTOS_switchState(predictive_delta_state);
-		 } else {
-		     RTOS_switchState(normal_state);
-		 }
-	    }
+        case 0x205:
+        	battery_percentage = data & 0xFF >> 1;
 	    break;
     }
 }
