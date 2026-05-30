@@ -86,6 +86,8 @@ enum error_type {
 	UVLO,
 	RESOLVER,
 	CMT,
+	MC,
+    CELL,
 };
 
 enum error_type current_fault = 0;
@@ -107,6 +109,7 @@ uint8_t error_bse_fault[] = {
     SEG_B | SEG_C | SEG_D | SEG_E | SEG_G,  		/* B */
 	SEG_A | SEG_F | SEG_G | SEG_C | SEG_D,          /* S */
     SEG_A | SEG_D | SEG_E | SEG_F | SEG_G,          /* E */
+	0,
 };
 
 /*
@@ -134,9 +137,19 @@ uint8_t error_uvlo_fault[] = {
  */
 uint8_t error_cmt_fault[] = {
     SEG_B | SEG_C | SEG_D | SEG_E | SEG_F,          /* C */
-    SEG_B | SEG_G | SEG_E | SEG_F,                  /* V */
-    SEG_E | SEG_D | SEG_F,          				/* L */
-    SEG_A | SEG_B | SEG_C | SEG_D | SEG_E | SEG_F,  /* O */
+    SEG_E | SEG_F | SEG_A | SEG_B,                  /* M */
+    SEG_B | SEG_C | SEG_A,          				/* M */
+    SEG_E | SEG_F | SEG_G,  						/* T */
+};
+
+/*
+ * Undervoltage fault
+ */
+uint8_t error_mcgeneric_fault[] = {
+    SEG_E | SEG_F | SEG_A | SEG_B,                  /* M */
+    SEG_B | SEG_C | SEG_A,          				/* M */
+    SEG_B | SEG_C | SEG_D | SEG_E | SEG_F,          /* C */
+    0,
 };
 
 /*
@@ -192,9 +205,8 @@ void apply_timecode(uint32_t bsd_sec) {
     buffer[4] = 0b00000000; /* blank */
 	buffer[3] = seg_lut[sec]|SEG_P;
 	buffer[2] = seg_lut[dsec];
-    
-
 }
+
 void apply_battery(uint32_t bsd_batt) {
     int ones_batt = (bsd_batt) & 0b1111;
 	int tens_batt = (bsd_batt >> 4) & 0b1111;
@@ -471,5 +483,16 @@ void process_CAN(uint16_t id, uint8_t length, uint64_t data){
         case 0x205:
         	battery_percentage = data & 0xFF >> 1;
 	    break;
+        case MC_CANID_FAULTCODES:
+        	MC_FaultCodes* fc = (MC_FaultCodes*)&data;
+        	if (fc->runtimeErrors & MC_RFAULT_RESOLVER_DISCONNECTED_Pos) {
+
+        	} else if (fc->runtimeErrors & MC_RFAULT_CAN_COMMAND_LOST_Pos) {
+
+        	} else if (fc->runtimeErrors & MC_RFAULT_GATE_DESATURATION_Pos) {
+
+        	} else if (fc->runtimeErrors || fc->postErrors) {
+
+        	} 
     }
 }
