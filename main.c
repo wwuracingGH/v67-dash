@@ -78,6 +78,21 @@ void recieve_CAN();
 #define SEG_G (1 << 6)
 #define SEG_P (1 << 4)
 
+enum error_type {
+	NONE = 0,
+	APPS,
+	BSE,
+	PLAUS,
+	UVLO,
+	RESOLVER,
+	CMT,
+};
+
+enum error_type current_fault = 0;
+
+/*
+ * Bounds, disagree, and delta faults
+ */
 uint8_t error_apps_fault[] = {
     SEG_A | SEG_B | SEG_C | SEG_E | SEG_F | SEG_G,  /* A */
     SEG_A | SEG_B | SEG_E | SEG_F | SEG_G,          /* P */
@@ -85,20 +100,18 @@ uint8_t error_apps_fault[] = {
     SEG_A | SEG_F | SEG_G | SEG_C | SEG_D,          /* S */
 };
 
-uint8_t error_uvlo_fault[] = {
-    SEG_B | SEG_C | SEG_D | SEG_E | SEG_F,          /* U */
-    SEG_B | SEG_G | SEG_E | SEG_F,                  /* V */
-    SEG_E | SEG_D | SEG_F,          				/* L */
-    SEG_A | SEG_B | SEG_C | SEG_D | SEG_E | SEG_F,  /* O */
-};
-
-uint8_t error_reso_fault[] = {
-    SEG_E | SEG_G,                                  /* R */
+/*
+ * BSE fault
+ */
+uint8_t error_bse_fault[] = {
+    SEG_B | SEG_C | SEG_D | SEG_E | SEG_G,  		/* B */
+	SEG_A | SEG_F | SEG_G | SEG_C | SEG_D,          /* S */
     SEG_A | SEG_D | SEG_E | SEG_F | SEG_G,          /* E */
-    SEG_A | SEG_F | SEG_G | SEG_C | SEG_D,          /* S */
-    SEG_A | SEG_B | SEG_C | SEG_D | SEG_E | SEG_F,  /* O */
 };
 
+/*
+ * Plausibility fault
+ */
 uint8_t error_plas_fault[] = {
     SEG_A | SEG_B | SEG_E | SEG_F | SEG_G,          /* P */
 	SEG_E | SEG_D | SEG_F,          				/* L */
@@ -106,7 +119,35 @@ uint8_t error_plas_fault[] = {
     SEG_A | SEG_F | SEG_G | SEG_C | SEG_D,          /* S */
 };
 
-uint8_t error_plaus_fault[]
+/*
+ * Undervoltage fault
+ */
+uint8_t error_uvlo_fault[] = {
+    SEG_B | SEG_C | SEG_D | SEG_E | SEG_F,          /* U */
+    SEG_B | SEG_G | SEG_E | SEG_F,                  /* V */
+    SEG_E | SEG_D | SEG_F,          				/* L */
+    SEG_A | SEG_B | SEG_C | SEG_D | SEG_E | SEG_F,  /* O */
+};
+
+/*
+ * Undervoltage fault
+ */
+uint8_t error_cmt_fault[] = {
+    SEG_B | SEG_C | SEG_D | SEG_E | SEG_F,          /* C */
+    SEG_B | SEG_G | SEG_E | SEG_F,                  /* V */
+    SEG_E | SEG_D | SEG_F,          				/* L */
+    SEG_A | SEG_B | SEG_C | SEG_D | SEG_E | SEG_F,  /* O */
+};
+
+/*
+ * Resolver fault
+ */
+uint8_t error_reso_fault[] = {
+    SEG_E | SEG_G,                                  /* R */
+    SEG_A | SEG_D | SEG_E | SEG_F | SEG_G,          /* E */
+    SEG_A | SEG_F | SEG_G | SEG_C | SEG_D,          /* S */
+    SEG_A | SEG_B | SEG_C | SEG_D | SEG_E | SEG_F,  /* O */
+};
 
 uint8_t buffer[] = {
     0x0,
@@ -339,10 +380,10 @@ void CAN_Init (){
 
     /* set bittiming - just read wikipedia if you don't know what that is */
     /* TODO: why is it still 1/2 of what it should be */
-    CAN->BTR |= 23 << CAN_BTR_BRP_Pos | 1 << CAN_BTR_TS1_Pos | 0 << CAN_BTR_TS2_Pos;
+    CAN->BTR |= 5 << CAN_BTR_BRP_Pos | 1 << CAN_BTR_TS1_Pos | 0 << CAN_BTR_TS2_Pos;
     CAN->MCR &= ~CAN_MCR_INRQ; /* clears the initialization request and starts the actual can */
     
-    //while (CAN->MSR & CAN_MSR_INAK);
+    while (CAN->MSR & CAN_MSR_INAK);
 
     /* blank filter - tells the can to read every message */
     CAN->FMR |= CAN_FMR_FINIT; 
